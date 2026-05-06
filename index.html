@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reseñas — Café La Esquina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div id="app" v-cloak>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <span class="header-logo">{{ NEGOCIO.logo }}</span>
+    <h1 class="header-nombre">{{ NEGOCIO.nombre }}</h1>
+    <p class="header-desc">{{ tVal(NEGOCIO.descripcion) }}</p>
+    <div class="header-info">
+      <span>📍 {{ NEGOCIO.direccion }}</span>
+      <span>🕐 {{ tVal(NEGOCIO.horario) }}</span>
+    </div>
+    <!-- Selector de idioma -->
+    <selector-idioma />
+  </header>
+
+  <main class="contenedor">
+
+    <!-- RESUMEN GLOBAL -->
+    <section class="panel-resumen" :aria-label="t('aria_resumen')">
+      <div class="resumen-numero-grande">
+        <span class="numero-grande">{{ promedioGlobal.toFixed(1) }}</span>
+        <comp-estrellas :model-value="Math.round(promedioGlobal)" :readonly="true" size="md" />
+        <span class="resumen-label">{{ todasLasResenas.length }} {{ t('resenas') }}</span>
+      </div>
+      <div class="resumen-detalle">
+        <div v-for="fila in distribucionEstrellas" :key="fila.estrellas" class="distribucion-fila">
+          <span>{{ fila.estrellas }} ★</span>
+          <div class="dist-barra-bg">
+            <div class="dist-barra-fill" :style="{ width: fila.porcentaje + '%' }"
+              role="progressbar" :aria-valuenow="fila.porcentaje" aria-valuemin="0" aria-valuemax="100">
+            </div>
+          </div>
+          <span class="dist-cantidad">{{ fila.cantidad }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROMEDIOS POR CATEGORÍA -->
+    <section class="categorias-promedio" :aria-label="t('detalle_categorias')">
+      <h2 class="seccion-titulo">{{ t('detalle_categorias') }}</h2>
+      <div v-for="cat in promediosPorCategoria" :key="cat.id" class="cat-promedio-fila">
+        <span class="cat-nombre">{{ cat.icono }} {{ tVal(cat.label) }}</span>
+        <comp-estrellas :model-value="Math.round(cat.promedio)" :readonly="true" size="sm" />
+        <span class="cat-avg-num">{{ cat.promedio.toFixed(1) }}</span>
+      </div>
+    </section>
+
+    <!-- BOTÓN DEJAR RESEÑA -->
+    <button v-if="!mostrarFormulario && !enviado" class="btn-cta" @click="abrirFormulario">
+      {{ t('btn_dejar_resena') }}
+    </button>
+
+    <!-- MENSAJE ÉXITO -->
+    <div v-if="enviado" class="msg-enviado" role="alert">
+      {{ t('msg_enviado') }}
+    </div>
+
+    <!-- FORMULARIO -->
+    <section v-if="mostrarFormulario" id="form-resena" class="formulario-resena" :aria-label="t('aria_formulario')">
+      <h2 class="form-titulo">{{ t('form_titulo') }}</h2>
+
+      <div class="progreso-wrap">
+        <span class="progreso-texto">
+          {{ progresoFormulario }}/{{ CATEGORIAS.length }} {{ t('form_progreso') }}
+        </span>
+        <div class="progreso-barra-bg">
+          <div class="progreso-barra-fill"
+            :style="{ width: (progresoFormulario / CATEGORIAS.length * 100) + '%' }">
+          </div>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label for="inputNombre">{{ t('form_nombre_label') }}</label>
+        <input id="inputNombre" type="text" v-model.trim="formNombre"
+          :placeholder="t('form_nombre_ph')" autocomplete="given-name" />
+      </div>
+
+      <div class="campo">
+        <label for="inputComentario">{{ t('form_comment_label') }}</label>
+        <textarea id="inputComentario" v-model.trim="formComentario"
+          rows="3" :placeholder="t('form_comment_ph')"></textarea>
+      </div>
+
+      <div class="form-categorias" role="group" :aria-label="t('aria_puntajes')">
+        <div v-for="cat in CATEGORIAS" :key="cat.id" class="form-cat-fila">
+          <span class="form-cat-label">{{ cat.icono }} {{ tVal(cat.label) }}</span>
+          <comp-estrellas v-model="formPuntajes[cat.id]" size="md" />
+        </div>
+      </div>
+
+      <ul v-if="errores.length" class="lista-errores" role="alert">
+        <li v-for="(error, i) in errores" :key="i">{{ error }}</li>
+      </ul>
+
+      <button type="button" class="btn-enviar" @click="enviarResena">
+        {{ t('btn_publicar') }}
+      </button>
+    </section>
+
+    <!-- LISTADO DE RESEÑAS -->
+    <section id="seccion-resenas" :aria-label="t('aria_listado')">
+      <div class="resenas-header">
+        <h2 class="seccion-titulo" style="margin-bottom:0">{{ t('lo_que_dice') }}</h2>
+        <span class="resenas-cantidad">{{ todasLasResenas.length }} {{ t('resenas') }}</span>
+      </div>
+
+      <div v-if="!todasLasResenas.length" class="estado-vacio">
+        <span>☕</span>{{ t('estado_vacio') }}
+      </div>
+
+      <div class="lista-resenas">
+        <tarjeta-resena
+          v-for="resena in todasLasResenas"
+          :key="resena.id"
+          :resena="resena"
+        />
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>{{ NEGOCIO.nombre }} &copy; 2026 · {{ t('footer') }}</p>
+  </footer>
+
+  <banner-autor />
+
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
